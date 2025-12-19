@@ -1,0 +1,155 @@
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f4f7f6;
+    color: #333;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+}
+
+header {
+    background-color: #007bff;
+    color: white;
+    padding: 20px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+main {
+    padding: 20px;
+    width: 90%;
+    max-width: 1000px;
+    flex-grow: 1;
+}
+
+h2 {
+    color: #007bff;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 10px;
+    margin-top: 30px;
+}
+
+#status-card {
+    /* Lớp cơ sở (status-card-base) sẽ giữ lại các style chung */
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    transition: all 0.5s ease-in-out;
+    border: 3px solid transparent; /* Viền động */
+}
+
+#congestion-display {
+    margin: 20px 0;
+}
+
+#emoji {
+    font-size: 80px;
+    display: block;
+    line-height: 1;
+    margin-bottom: 10px;
+}
+
+#level-text {
+    font-size: 2.5em;
+    font-weight: bold;
+    margin: 10px 0 0;
+}
+
+/* ------------------------------------- */
+/* Màu sắc động cho trạng thái (do JS thêm vào) */
+/* ------------------------------------- */
+
+/* Trạng thái Thấp: Xanh */
+.status-Thấp { 
+    color: #28a745; 
+    background-color: #d4edda; 
+    border-color: #28a745;
+} 
+/* Trạng thái Vừa phải: Vàng */
+.status-Vừa_phải { 
+    color: #ffc107; 
+    background-color: #fff3cd; 
+    border-color: #ffc107;
+} 
+/* Trạng thái Cao: Cam */
+.status-Cao { 
+    color: #fd7e14; 
+    background-color: #fff0e7; 
+    border-color: #fd7e14;
+} 
+/* Trạng thái Tắc nghẽn nặng 🚨: Đỏ */
+.status-Tắc_nghẽn_nặng { 
+    color: #dc3545; 
+    background-color: #f8d7da; 
+    border-color: #dc3545;
+}
+
+.data-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.data-item {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    text-align: center;
+}
+
+.data-item h4 {
+    margin-top: 0;
+    color: #6c757d;
+    font-size: 0.9em;
+}
+
+.data-item p {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #333;
+    margin: 5px 0 0;
+}
+
+#refresh-btn {
+    background-color: #17a2b8;
+    color: white;
+    padding: 12px 25px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 30px;
+    font-size: 1em;
+    font-weight: bold;
+    transition: background-color 0.3s;
+    display: block;
+    width: 100%;
+    max-width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#refresh-btn:hover:not(:disabled) {
+    background-color: #138496;
+}
+
+#refresh-btn:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+}
+
+footer {
+    width: 100%;
+    text-align: center;
+    padding: 15px;
+    background-color: #333;
+    color: white;
+    margin-top: 40px;
+}

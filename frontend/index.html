@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dự đoán Giao thông Thời gian Thực</title>
+    <link rel="stylesheet" href="index.css">
+    <script src="index.js" defer></script> 
+</head>
+<body>
+    <header>
+        <h1>🚦 Hệ thống Dự đoán Giao thông Nút giao</h1>
+    </header>
+    
+    <main>
+        <section id="prediction-status">
+            <h2>Tình trạng Nút giao Hiện tại</h2>
+            <div id="status-card" class="status-card-base"> 
+                <p id="timestamp">Đang tải...</p>
+                <div id="congestion-display">
+                    <span id="emoji">❓</span>
+                    <h3 id="level-text">Chưa rõ</h3>
+                </div>
+                <p>Lưu lượng xe dự đoán (Flow): <strong id="predicted-flow">--.--</strong></p>
+                <p class="note">Cập nhật theo thời gian thực từ mô hình AI.</p>
+            </div>
+        </section>
+
+        <section id="input-data">
+            <h2>Dữ liệu Đầu vào</h2>
+            <div class="data-grid">
+                <div class="data-item">
+                    <h4>Tốc độ TB (Google Maps)</h4>
+                    <p id="avg-speed">-- km/h</p>
+                </div>
+                <div class="data-item">
+                    <h4>Thời gian Đèn Xanh</h4>
+                    <p id="green-time">-- giây</p>
+                </div>
+                <div class="data-item">
+                    <h4>Nhiệt độ</h4>
+                    <p id="temperature">-- °C</p>
+                </div>
+                <div class="data-item">
+                    <h4>Tình trạng Mưa</h4>
+                    <p id="rain-flag">--</p>
+                </div>
+                <div class="data-item">
+                    <h4>Ước lượng Xe Máy</h4>
+                    <p id="moto-count">--</p>
+                </div>
+                <div class="data-item">
+                    <h4>Ước lượng Ô tô</h4>
+                    <p id="car-count">--</p>
+                </div>
+            </div>
+            <button id="refresh-btn">Cập nhật Ngay</button>
+        </section>
+    </main>
+    
+    <footer>
+        <p>&copy; 2025 Traffic Prediction System</p>
+    </footer>
+</body>
+</html>
