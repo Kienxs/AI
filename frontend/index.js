@@ -43,6 +43,23 @@ function updateUI(data) {
     document.getElementById('rain-flag').textContent = row.rain === 1 ? "Có Mưa 🌧️" : "Khô ráo ☀️";
     document.getElementById('moto-count').textContent = row.motorbike_count;
     document.getElementById('car-count').textContent = row.car_count;
+
+    const eventElem = document.getElementById('event-flag');
+    const holidayElem = document.getElementById('is-holiday');
+
+    // Hiển thị trạng thái Sự kiện/Sự cố
+    if (row.event_flag === 1) {
+        eventElem.innerHTML = '<span style="color: #e74c3c; font-weight: bold;">Có sự cố/Sự kiện ⚠️</span>';
+    } else {
+        eventElem.textContent = "Bình thường ✅";
+    }
+
+    // Hiển thị trạng thái Ngày lễ
+    if (row.is_holiday === 1) {
+        holidayElem.innerHTML = '<span style="color: #f39c12; font-weight: bold;">Ngày Lễ/Nghỉ 🎉</span>';
+    } else {
+        holidayElem.textContent = "Ngày thường 💼";
+    }
 }
 
 
@@ -52,11 +69,6 @@ async function fetchData() {
     refreshBtn.disabled = true;
     refreshBtn.textContent = 'Đang Cập nhật...';
 
-    // *** BƯỚC QUAN TRỌNG: KÍCH HOẠT SCRIPT PYTHON DỰ ĐOÁN ***
-    // Chúng ta cần gọi một API endpoint kích hoạt real_time_predict.py 
-    // để tạo ra file real_time_prediction.csv trước khi đọc nó.
-    
-    // Gọi API đã được thiết lập trong app.py để chạy dự đoán
     try {
         // API này sẽ gọi real_time_predict.py và trả về kết quả dự đoán mới nhất
         const predictionResponse = await fetch('/api/run-prediction'); 

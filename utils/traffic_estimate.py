@@ -38,7 +38,7 @@ def estimate_traffic_counts(avg_speed):
     # ============================
     else:
         motorbike = random.randint(625, 820)
-        car       = random.randint(678, 280)
+        car       = random.randint(280, 678)
         bus       = random.randint(28, 51)
 
     return motorbike, car, bus

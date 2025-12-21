@@ -1,142 +1,163 @@
-from flask import Flask, send_from_directory, jsonify, request
+import os
+import json
 import pandas as pd
 import joblib
-import os
+import threading
+import holidays
+import time
 from datetime import datetime
-import subprocess # Cần cho việc chạy script Python khác
-import json
+from flask import Flask, send_from_directory, jsonify, request
+
+# Import các hàm từ các module bạn đã viết
+from utils.traffic_scraper import get_google_maps_speed
+from utils.traffic_estimate import estimate_traffic_counts
+from predict.real_time_predict import get_real_weather, classify
 
 # ===========================
-# CONFIG
+# CONFIG & PATHS
 # ===========================
-FRONTEND_DIR = "frontend"
-DATA_PATH = "data/traffic_data.csv"
-MODEL_PATH = "models/model.pkl"
-PREDICT_SCRIPT_PATH = "predict/real_time_predict.py"
-PREDICTION_CSV_PATH = "real_time_prediction.csv"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
+MODEL_PATH = os.path.join(BASE_DIR, "models", "model.pkl")
+DATA_PATH = os.path.join(BASE_DIR, "data", "traffic_data.csv")
+PREDICTION_CSV_PATH = os.path.join(BASE_DIR, "real_time_prediction.csv")
 
-app = Flask(__name__, static_folder=FRONTEND_DIR, template_folder=FRONTEND_DIR)
+app = Flask(__name__, static_folder=FRONTEND_DIR, static_url_path='')
 
-# Tải model (Bỏ qua tạm thời nếu chưa có model.pkl)
+# ===========================
+# 1. LOAD MODEL (GLOBAL)
+# ===========================
 try:
     model = joblib.load(MODEL_PATH)
-    print(f"✅ Đã tải mô hình từ: {MODEL_PATH}")
+    print(f"✅ [Hệ thống] Đã tải mô hình thành công.")
 except Exception as e:
-    print(f"⚠️ LỖI: Không thể tải mô hình ({MODEL_PATH}). Vui lòng huấn luyện mô hình trước. Lỗi: {e}")
+    print(f"❌ [Lỗi] Không thể tải mô hình: {e}")
     model = None
 
+# Biến toàn cục để lưu kết quả mới nhất (Cache)
+latest_prediction = {}
 
-# ==========================================
-# 1. SERVE FRONTEND & STATIC FILES
-# ==========================================
-
-@app.route("/")
-def serve_index():
-    return send_from_directory(FRONTEND_DIR, "index.html")
-
-@app.route("/<path:path>")
-def serve_static(path):
-    return send_from_directory(FRONTEND_DIR, path)
-
-
-# ==========================================
-# 2. API — KÍCH HOẠT DỰ ĐOÁN THỜI GIAN THỰC
-# ==========================================
-
-# Đoạn code trong file app.py
-# ...
-
-# ==========================================
-# 2. API — KÍCH HOẠT DỰ ĐOÁN THỜI GIAN THỰC
-# ==========================================
-
-@app.route("/api/run-prediction")
-def run_prediction():
+# ===========================
+# 2. HÀM DỰ ĐOÁN CỐT LÕI (CORE LOGIC)
+# ===========================
+def process_traffic_prediction():
+    global latest_prediction
     try:
-        print("[+] Kích hoạt dự đoán...")
-
-        process = subprocess.Popen(
-            ["python", PREDICT_SCRIPT_PATH],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=False  # ← NHẬN RAW BYTES, KHÔNG ÉP UTF-8
-        )
-
-        stdout, stderr = process.communicate()
-
-        # decode an toàn
-        stdout = stdout.decode("utf-8", errors="ignore") if stdout else ""
-        stderr = stderr.decode("utf-8", errors="ignore") if stderr else ""
-
-        print("STDOUT:", stdout)
-        print("STDERR:", stderr)
-
-        if process.returncode != 0:
-            return jsonify({
-                "error": f"Lỗi khi chạy script dự đoán",
-                "stderr": stderr
-            }), 500
-
-        return jsonify({"message": "Chạy dự đoán thành công!", "stdout": stdout})
-
-    except Exception as e:
-        print("❌ Lỗi:", e)
-        return jsonify({"error": f"Lỗi Server: {str(e)}"}), 500
-
-# ==========================================
-# 3. API — LẤY FILE real_time_prediction.csv
-# ==========================================
-
-@app.route("/api/realtime")
-def get_real_time():
-    if not os.path.exists(PREDICTION_CSV_PATH):
-        # API này có thể được gọi trước khi chạy dự đoán lần đầu
-        return jsonify([{"error": "real_time_prediction.csv not found"}]), 404
-
-    df = pd.read_csv(PREDICTION_CSV_PATH)
-    
-    # Chỉ lấy bản ghi gần nhất và chuyển thành danh sách các đối tượng JSON
-    # 'records' trả về một danh sách các dictionary, dễ xử lý trong JS
-    latest = json.loads(df.tail(1).to_json(orient="records"))
-    return jsonify(latest)
-
-
-# ==========================================
-# 4. API — API KHÁC (giữ lại theo code cũ của bạn)
-# ==========================================
-
-@app.route("/api/data")
-def get_data():
-    if not os.path.exists(DATA_PATH):
-        return jsonify({"error": "traffic_data.csv not found"}), 404
-    df = pd.read_csv(DATA_PATH)
-    return df.to_json(orient="records")
-
-@app.route("/api/predict", methods=["POST"])
-def predict():
-    if model is None:
-        return jsonify({"error": "Model chưa được tải thành công"}), 500
+        # 1. Cào dữ liệu Google Maps (HaUI)
+        url = "http://googleusercontent.com/maps.google.com/8"
+        avg_speed, green_time = get_google_maps_speed(url)
         
-    try:
-        data = request.json
-        df = pd.DataFrame([data])
+        # 2. Lấy thời tiết & Ước lượng xe
+        temp, rain = get_real_weather()
+        moto, car, bus = estimate_traffic_counts(avg_speed)
+        
+        now = datetime.now()
+        
+        vn_holidays = holidays.VN() 
+        is_holiday = 1 if (now in vn_holidays or now.weekday() >= 5) else 0
+        
+        # Logic Sự cố (event_flag): 
+        # Thực tế rất khó cào sự cố real-time, nên ta dùng logic dựa trên tốc độ:
+        # Nếu tốc độ cực thấp (< 10km/h) mà không phải giờ cao điểm -> Có thể có sự cố
+        is_peak_hour = (7 <= now.hour <= 9) or (16 <= now.hour <= 19)
+        event_flag = 1 if (avg_speed < 10 and not is_peak_hour) else 0
 
+        # 3. Chuẩn bị dữ liệu cho Model
         features = [
             "avg_speed", "green_time", "rain", "temp", "event_flag",
             "hour_of_day", "day_of_week", "is_holiday",
             "motorbike_count", "car_count", "bus_count", "minute"
         ]
-
-        pred = model.predict(df[features])[0]
-
-        return jsonify({
-            "prediction": round(float(pred), 2)
-        })
-
+        
+        input_row = {
+            "avg_speed": avg_speed, "green_time": green_time, "rain": rain, "temp": temp,
+            "event_flag": event_flag, 
+            "hour_of_day": now.hour, 
+            "day_of_week": now.weekday() + 1,
+            "is_holiday": is_holiday, 
+            "motorbike_count": moto, "car_count": car, "bus_count": bus,
+            "minute": now.minute
+        }
+        
+        df_input = pd.DataFrame([input_row])
+        
+        # 4. Dự đoán
+        pred_flow = model.predict(df_input[features])[0]
+        level = classify(pred_flow)
+        
+        # 5. Lưu kết quả vào biến Global để Frontend lấy
+        result = {
+            "timestamp": now.strftime('%Y-%m-%d %H:%M:%S'),
+            "flow_weighted_pred": round(float(pred_flow), 2),
+            "congestion_level": level,
+            "avg_speed": avg_speed,
+            "green_time": green_time, 
+            "temp": temp,          
+            "rain": "Mưa" if rain == 1 else "Khô ráo", 
+            "motorbike_count": moto, 
+            "car_count": car,      
+            "bus_count": bus,
+            "event_flag": event_flag, 
+            "is_holiday": is_holiday,    
+        }
+        latest_prediction = result
+        
+        # 6. Ghi vào file CSV
+        df_input["timestamp"] = now
+        df_input["flow_weighted_pred"] = pred_flow
+        df_input["congestion_level"] = level
+        
+        header = not os.path.exists(PREDICTION_CSV_PATH)
+        df_input.to_csv(PREDICTION_CSV_PATH, mode='a', index=False, header=header)
+        
+        return result
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        print(f"❌ [Lỗi Dự Đoán]: {e}")
+        return None
 
+# ===========================
+# 3. BACKGROUND THREAD (LUỒNG CHẠY NGẦM)
+# ===========================
+def background_worker():
+    while True:
+        process_traffic_prediction()
+        # Nghỉ 5 phút 
+        time.sleep(300)
 
-# ==========================================
+# Khởi chạy luồng ngầm ngay khi app start
+threading.Thread(target=background_worker, daemon=True).start()
+
+# ===========================
+# 4. API ROUTES
+# ===========================
+
+@app.route("/")
+def serve_index():
+    return send_from_directory(FRONTEND_DIR, "index.html")
+
+@app.route("/api/run-prediction")
+def trigger_prediction():
+    res = process_traffic_prediction()
+    if res:
+        return jsonify({"message": "Cập nhật thành công", "data": res})
+    return jsonify({"error": "Không thể lấy dữ liệu từ Google Maps"}), 500
+
+@app.route("/api/realtime")
+def get_latest():
+    if not latest_prediction:
+        return jsonify({"message": "Đang khởi tạo dữ liệu..."}), 202
+    return jsonify([latest_prediction])
+
+@app.route("/api/data")
+def get_history():
+    if not os.path.exists(DATA_PATH):
+        return jsonify({"error": "Data file not found"}), 404
+    df = pd.read_csv(DATA_PATH)
+    return df.to_json(orient="records")
+
+# ===========================
+# START SERVER
+# ===========================
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    # Tắt debug=True khi dùng Threading để tránh bị khởi chạy luồng 2 lần
+    app.run(host="0.0.0.0", port=5000, debug=False)

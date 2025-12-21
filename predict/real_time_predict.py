@@ -13,7 +13,7 @@ from utils.traffic_estimate import estimate_traffic_counts
 def get_real_weather():
     try:
         res = requests.get(
-            "https://api.open-meteo.com/v1/forecast?latitude=10.8492335&longitude=106.773857&current_weather=true&temperature_unit=celsius&timezone=auto",
+            "https://api.open-meteo.com/v1/forecast?latitude=21.0537&longitude=105.7351&current_weather=true&temperature_unit=celsius&timezone=auto",
             timeout=5
         ).json()
         
@@ -26,26 +26,21 @@ def get_real_weather():
         return temp, rain_flag
     
     except Exception as e:
-        return 30, 0  # mặc định: không mưa, 30°C
+        return 30, 0  
 
 
 # ==== Load model ====
 MODEL_PATH = "models/model.pkl"
 model = joblib.load(MODEL_PATH)
 
-# ==== URL Google Maps đến nút giao thông ====
-url = "https://www.google.com/maps/@10.8492335,106.773857,21z"
+url = "https://www.google.com/maps/@21.0537,105.7351,17z/data=!5m1!1e1"
 
-# ==== Lấy dữ liệu thực tế từ Google Maps ====
 avg_speed, green_time = get_google_maps_speed(url)
 
-# Lấy thời tiết
 temp, rain = get_real_weather()
 
-# Ước lượng xe thật
 moto, car, bus = estimate_traffic_counts(avg_speed)
 
-# ==== Tạo dữ liệu mới ====
 now = datetime.now()
 new_data = {
     "timestamp": [now],
@@ -55,7 +50,7 @@ new_data = {
     "temp": [temp],
     "event_flag": [0],
     "hour_of_day": [now.hour],
-    "day_of_week": [now.weekday()],
+    "day_of_week": [now.weekday() + 1],
     "is_holiday": [0],
     "motorbike_count": [moto],
     "car_count": [car],
@@ -97,7 +92,6 @@ for _, row in new_df.iterrows():
     print(f"{icon}  ⏱ {row['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}  ➜  "
           f"{row['congestion_level']} (Flow dự đoán: {row['flow_weighted_pred']:.2f})")
 
-# ==== Lưu CSV ====
 csv_path = "real_time_prediction.csv"
 
 # Nếu file đã tồn tại → append và KHÔNG ghi header

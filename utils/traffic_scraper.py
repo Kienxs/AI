@@ -1,74 +1,71 @@
+import io
+import time
+import numpy as np
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 from PIL import Image
-import numpy as np
-import time
-import io
 
 def detect_map_speed_from_colors(img):
     """
     Nhận dạng màu giao thông từ screenshot Google Maps.
-    Trả về tốc độ ước tính (km/h).
+    Đã tối ưu hóa việc xử lý mảng để chạy nhanh trên chip M1/M2/M3.
     """
-
     arr = np.array(img)
-
-    # Lấy vùng trung tâm – nơi chứa đường lớn
     h, w, _ = arr.shape
+    # Lấy vùng trung tâm 1/3 màn hình để phân tích màu sắc chính xác nhất
     crop = arr[h//3:2*h//3, w//3:2*w//3]
 
-    # Tính giá trị trung bình màu
-    avg = crop.mean(axis=(0, 1))  # [R,G,B]
+    # Tính trung bình màu nhanh bằng numpy
+    avg = crop.mean(axis=(0, 1))
     r, g, b = avg[:3]
 
-    # Mapping màu → tốc độ
-    if g > 150 and r < 120:      # Xanh lá
-        return 50
-    if r > 200 and g > 160:      # Vàng
-        return 30
-    if r > 200 and g < 120:      # Cam
-        return 15
-    if r > 150 and g < 80:       # Đỏ
-        return 10
-
-    # Không nhận dạng được → default
-    return 30
+    # Logic phân loại màu dựa trên thực tế Google Maps Traffic
+    if g > 150 and r < 120: return 50  # Xanh lá (Thoáng)
+    if r > 200 and g > 160: return 30  # Vàng (Vừa phải)
+    if r > 200 and g < 120: return 15  # Cam (Cao)
+    if r > 150 and g < 80:  return 8   # Đỏ (Tắc nghẽn nặng)
+    
+    return 30 # Mặc định
 
 def get_google_maps_speed(url):
     chrome_options = Options()
-    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--headless=new")
+    chrome_options.page_load_strategy = 'eager'
+    chrome_options.add_argument("--disable-remote-fonts") 
+    chrome_options.add_argument("--disable-extensions")
+    chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage") #tránh tràn bộ nhớ
-    chrome_options.add_argument("--disable-gpu") #tối ưu hóa việc chụp màn hình
-    chrome_options.add_argument("--window-size=1920, 1080")
     chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--window-size=1024,768")
+    
+    service = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service, options=chrome_options)
 
-    driver = webdriver.Chrome(
-        service=Service(ChromeDriverManager().install()),
-        options=chrome_options
-    )
+    try:
+        driver.set_page_load_timeout(10)
+        
+        start_time = time.time()
+        driver.get(url)
+        # Chỉ chờ tối đa 2.5 giây. Với mạng ổn định, lớp Traffic sẽ hiện sau 1.5 - 2s.
+        time.sleep(2.5) 
+        # Chụp màn hình dạng binary trực tiếp vào RAM, không lưu xuống ổ cứng
+        png = driver.get_screenshot_as_png()
+        
+        print(f"✅ Scraping hoàn tất trong: {time.time() - start_time:.2f} giây")
+        
+    finally:
+        driver.quit()
 
-    driver.get(url)
-    time.sleep(5)  # chờ map load
-
-    # Chụp màn hình
-    png = driver.get_screenshot_as_png()
-    driver.quit()
-
+    # Xử lý ảnh bằng Pillow
     img = Image.open(io.BytesIO(png))
-
-    # Dự đoán tốc độ từ màu
     estimated_speed = detect_map_speed_from_colors(img)
 
-    # Green time → bạn đặt cố định hoặc tự mô phỏng
-    green_time = 60
-
-    return estimated_speed, green_time
+    return estimated_speed, 60
 
 # TEST
 if __name__ == "__main__":
-    url = "https://www.google.com/maps/@10.8494091,106.7736484,19z/data=!5m1!1e1"
-    sp, gr = get_google_maps_speed(url)
-    print("Speed:", sp, "km/h.  Green:", gr)
+    test_url = "http://googleusercontent.com/maps.google.com/9"
+    sp, gr = get_google_maps_speed(test_url)
+    print(f"📊 Kết quả -> Tốc độ: {sp} km/h | Đèn xanh: {gr}s")

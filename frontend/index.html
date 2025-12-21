@@ -10,11 +10,14 @@
 <body>
     <header>
         <h1>🚦 Hệ thống Dự đoán Giao thông Nút giao</h1>
+        <a href="https://www.google.com/maps/@21.0537,105.7351,17z/data=!5m1!1e1" target="_blank" class="btn-map">
+             Xem trên Google Maps
+        </a>
     </header>
     
     <main>
         <section id="prediction-status">
-            <h2>Tình trạng Nút giao Hiện tại</h2>
+            <h2>Tình trạng nút giao QL32 - Cổng Đại học Công nghiệp Hà Nội (Cơ sở 1) hiện tại</h2>
             <div id="status-card" class="status-card-base"> 
                 <p id="timestamp">Đang tải...</p>
                 <div id="congestion-display">
@@ -52,6 +55,14 @@
                 <div class="data-item">
                     <h4>Ước lượng Ô tô</h4>
                     <p id="car-count">--</p>
+                </div>
+                <div class="data-item">
+                    <h4>Sự cố / Sự kiện</h4>
+                    <p id="event-flag">--</p>
+                </div>
+                <div class="data-item">
+                    <h4>Loại ngày</h4>
+                    <p id="is-holiday">--</p>
                 </div>
             </div>
             <button id="refresh-btn">Cập nhật Ngay</button>
