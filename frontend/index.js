@@ -1,105 +1,103 @@
 // frontend/index.js
 
-// Hàm cập nhật giao diện người dùng với dữ liệu JSON nhận được
-function updateUI(data) {
-    if (!data || data.length === 0) {
-        // Xử lý trường hợp không có dữ liệu
-        document.getElementById('level-text').textContent = 'Không có dữ liệu';
-        document.getElementById('emoji').textContent = '⚠️';
-        document.getElementById('timestamp').textContent = 'Lỗi hoặc chưa có dự đoán.';
-        return;
+// 1. KHỞI TẠO BẢN ĐỒ LEAFLET
+// Cài đặt view mặc định tại Hà Nội
+const map = L.map('map').setView([21.0285, 105.8542], 13);
+
+// Thêm lớp bản đồ từ OpenStreetMap
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap'
+}).addTo(map);
+
+let currentMarker = null;
+
+// 2. LẮNG NGHE SỰ KIỆN CLICK TRÊN BẢN ĐỒ
+map.on('click', function(e) {
+    const lat = e.latlng.lat;
+    const lng = e.latlng.lng;
+
+    // Di chuyển hoặc tạo marker mới tại điểm click
+    if (currentMarker) {
+        currentMarker.setLatLng(e.latlng);
+    } else {
+        currentMarker = L.marker(e.latlng).addTo(map);
     }
 
-    // Lấy bản ghi mới nhất (API trả về mảng, lấy phần tử đầu tiên)
-    const row = data[0]; 
+    // Gọi hàm fetch phân tích
+    predictCustomLocation(lat, lng);
+});
 
-    // Chuẩn hóa và thêm emoji (do API Python chưa tự động thêm emoji)
-    const level = row.congestion_level;
-    const flow = row.flow_weighted_pred;
+// 3. HÀM GỌI API DỰ ĐOÁN
+async function predictCustomLocation(lat, lng) {
+    const loadingOverlay = document.getElementById('loading-overlay');
+    const statusCard = document.getElementById('status-card');
     
+    // Hiển thị loading overlay
+    loadingOverlay.classList.remove('hidden');
+    // Reset viền màu trong lúc tải
+    statusCard.className = 'status-card-base';
+
+    try {
+        // Gửi POST request kèm theo tọa độ
+        const response = await fetch('/api/predict-location', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ lat: lat, lng: lng })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Có lỗi xảy ra từ máy chủ");
+        }
+
+        // Cập nhật giao diện khi có kết quả
+        updateUI(data);
+
+    } catch (error) {
+        console.error("Lỗi:", error);
+        alert(`Không thể lấy dự đoán: ${error.message}`);
+        
+        // Trả UI về trạng thái mặc định nếu lỗi
+        document.getElementById('emoji').textContent = "❌";
+        document.getElementById('level-text').textContent = "Lỗi kết nối";
+    } finally {
+        // Ẩn loading overlay khi xong
+        loadingOverlay.classList.add('hidden');
+    }
+}
+
+// 4. HÀM CẬP NHẬT GIAO DIỆN VỚI DỮ LIỆU JSON
+function updateUI(data) {
+    const level = data.congestion_level;
+    const flow = data.flow_predicted;
+    const details = data.details;
+    const loc = data.location;
+    
+    // Set emoji
     let emoji = '❓';
     if (level === "Thấp") emoji = "🟢";
     else if (level === "Vừa phải") emoji = "🟡";
     else if (level === "Cao") emoji = "🟠";
     else if (level.includes("Tắc nghẽn nặng")) emoji = "🔴";
 
-    // 1. Cập nhật trạng thái chính
-    // Sử dụng date string từ row.timestamp
-    document.getElementById('timestamp').textContent = `Thời gian: ${row.timestamp}`; 
+    // Cập nhật text chính
+    document.getElementById('location-coord').textContent = `Tọa độ: ${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}`;
     document.getElementById('emoji').textContent = emoji;
     document.getElementById('level-text').textContent = level.replace('🚨', '').trim();
-    document.getElementById('predicted-flow').textContent = parseFloat(flow).toFixed(2);
+    document.getElementById('predicted-flow').textContent = flow.toFixed(2);
     
-    // 2. Cập nhật màu sắc động
+    // Đổi màu Card
     const statusCard = document.getElementById('status-card');
-    statusCard.className = 'status-card-base'; // Khởi tạo lại lớp cơ sở
+    statusCard.className = 'status-card-base'; 
     const statusClass = 'status-' + level.replace(/ /g, '_').replace('🚨', '').trim();
     statusCard.classList.add(statusClass);
 
-    // 3. Cập nhật dữ liệu đầu vào
-    document.getElementById('avg-speed').textContent = `${parseFloat(row.avg_speed).toFixed(1)} km/h`;
-    document.getElementById('green-time').textContent = `${row.green_time} giây`;
-    document.getElementById('temperature').textContent = `${row.temp}°C`;
-    document.getElementById('rain-flag').textContent = row.rain === 1 ? "Có Mưa 🌧️" : "Khô ráo ☀️";
-    document.getElementById('moto-count').textContent = row.motorbike_count;
-    document.getElementById('car-count').textContent = row.car_count;
-
-    const eventElem = document.getElementById('event-flag');
-    const holidayElem = document.getElementById('is-holiday');
-
-    // Hiển thị trạng thái Sự kiện/Sự cố
-    if (row.event_flag === 1) {
-        eventElem.innerHTML = '<span style="color: #e74c3c; font-weight: bold;">Có sự cố/Sự kiện ⚠️</span>';
-    } else {
-        eventElem.textContent = "Bình thường ✅";
-    }
-
-    // Hiển thị trạng thái Ngày lễ
-    if (row.is_holiday === 1) {
-        holidayElem.innerHTML = '<span style="color: #f39c12; font-weight: bold;">Ngày Lễ/Nghỉ 🎉</span>';
-    } else {
-        holidayElem.textContent = "Ngày thường 💼";
-    }
+    // Cập nhật thông số chi tiết
+    document.getElementById('avg-speed').textContent = `${parseFloat(details.speed).toFixed(1)} km/h`;
+    document.getElementById('temperature').textContent = `${details.temp}°C`;
+    document.getElementById('weather-status').textContent = details.weather;
 }
-
-
-// Hàm gọi API để lấy dữ liệu mới nhất
-async function fetchData() {
-    const refreshBtn = document.getElementById('refresh-btn');
-    refreshBtn.disabled = true;
-    refreshBtn.textContent = 'Đang Cập nhật...';
-
-    try {
-        // API này sẽ gọi real_time_predict.py và trả về kết quả dự đoán mới nhất
-        const predictionResponse = await fetch('/api/run-prediction'); 
-        
-        if (!predictionResponse.ok) {
-            const errorData = await predictionResponse.json();
-            throw new Error(`Lỗi Server: ${errorData.error}`);
-        }
-        
-        // Sau khi chạy xong, gọi lại /api/realtime để lấy dữ liệu đã được format
-        const realtimeResponse = await fetch('/api/realtime');
-        const data = await realtimeResponse.json();
-        
-        // Kiểm tra lỗi từ script Python/Server
-        if (Array.isArray(data) && data[0]?.error) {
-            alert('Lỗi từ Server: ' + data[0].error);
-        } else {
-            updateUI(data);
-        }
-
-    } catch (error) {
-        console.error("Lỗi khi lấy dữ liệu:", error);
-        alert(`Không thể cập nhật: ${error.message}`);
-    } finally {
-        refreshBtn.disabled = false;
-        refreshBtn.textContent = 'Cập nhật Ngay';
-    }
-}
-
-// Gọi lần đầu khi tải trang
-fetchData();
-
-// Thêm sự kiện cho nút Cập nhật Ngay
-document.getElementById('refresh-btn').addEventListener('click', fetchData);

@@ -1,3 +1,4 @@
+#traffic_scraper.py
 import io
 import time
 import numpy as np
@@ -29,7 +30,9 @@ def detect_map_speed_from_colors(img):
     
     return 30 # Mặc định
 
-def get_google_maps_speed(url):
+def get_google_maps_speed(lat, lng, zoom=17):
+    url = f"https://www.google.com/maps/@{lat},{lng},{zoom}z/data=!5m1!1e1"
+
     chrome_options = Options()
     chrome_options.add_argument("--headless=new")
     chrome_options.page_load_strategy = 'eager'
@@ -45,11 +48,12 @@ def get_google_maps_speed(url):
 
     try:
         driver.set_page_load_timeout(10)
-        
+        driver.get(url)
+
         start_time = time.time()
         driver.get(url)
-        # Chỉ chờ tối đa 2.5 giây. Với mạng ổn định, lớp Traffic sẽ hiện sau 1.5 - 2s.
-        time.sleep(2.5) 
+        # Chỉ chờ tối đa 3 giây. 
+        time.sleep(3) 
         # Chụp màn hình dạng binary trực tiếp vào RAM, không lưu xuống ổ cứng
         png = driver.get_screenshot_as_png()
         

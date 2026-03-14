@@ -41,8 +41,7 @@ df["minute"] = df["timestamp"].dt.minute
 target = "flow_weighted"
 features = [
     "avg_speed", "green_time", "rain", "temp", "event_flag",
-    "hour_of_day", "day_of_week", "is_holiday",
-    "motorbike_count", "car_count", "bus_count", "minute"
+    "hour_of_day", "day_of_week", "is_holiday", "minute"
 ]
 
 X = df[features]

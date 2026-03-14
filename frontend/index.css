@@ -1,5 +1,5 @@
 body {
-    font-family: 'Arial', sans-serif;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: #f4f7f6;
     color: #333;
     margin: 0;
@@ -11,145 +11,114 @@ body {
 }
 
 header {
-    background-color: #007bff;
+    background-color: #1a73e8;
     color: white;
-    padding: 20px;
+    padding: 20px 10px;
     width: 100%;
     text-align: center;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
+header h1 { margin: 0; font-size: 1.8em; }
+header p { margin: 5px 0 0; font-size: 1em; opacity: 0.9; }
+
 main {
     padding: 20px;
-    width: 90%;
+    width: 95%;
     max-width: 1000px;
     flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* KHU VỰC MAP */
+#map {
+    height: 400px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border: 2px solid #ddd;
+    z-index: 1; /* Để không đè lên các popup khác */
 }
 
 h2 {
-    color: #007bff;
+    color: #1a73e8;
     border-bottom: 2px solid #eee;
     padding-bottom: 10px;
-    margin-top: 30px;
+    margin-top: 10px;
+    font-size: 1.4em;
 }
 
+/* KHU VỰC STATUS CARD */
 #status-card {
-    /* Lớp cơ sở (status-card-base) sẽ giữ lại các style chung */
     background: white;
     padding: 30px;
     border-radius: 12px;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
     text-align: center;
-    transition: all 0.5s ease-in-out;
-    border: 3px solid transparent; /* Viền động */
+    transition: all 0.3s ease-in-out;
+    border: 3px solid transparent;
+    position: relative; /* Quan trọng để chứa loading overlay */
+    overflow: hidden;
 }
 
-#congestion-display {
-    margin: 20px 0;
-}
+#location-coord { color: #666; font-size: 0.9em; margin-bottom: 15px; }
 
-#emoji {
-    font-size: 80px;
-    display: block;
-    line-height: 1;
-    margin-bottom: 10px;
-}
-
-#level-text {
-    font-size: 2.5em;
-    font-weight: bold;
-    margin: 10px 0 0;
-}
-
-/* ------------------------------------- */
-/* Màu sắc động cho trạng thái (do JS thêm vào) */
-/* ------------------------------------- */
-
-/* Trạng thái Thấp: Xanh */
-.status-Thấp { 
-    color: #28a745; 
-    background-color: #d4edda; 
-    border-color: #28a745;
-} 
-/* Trạng thái Vừa phải: Vàng */
-.status-Vừa_phải { 
-    color: #ffc107; 
-    background-color: #fff3cd; 
-    border-color: #ffc107;
-} 
-/* Trạng thái Cao: Cam */
-.status-Cao { 
-    color: #fd7e14; 
-    background-color: #fff0e7; 
-    border-color: #fd7e14;
-} 
-/* Trạng thái Tắc nghẽn nặng 🚨: Đỏ */
-.status-Tắc_nghẽn_nặng { 
-    color: #dc3545; 
-    background-color: #f8d7da; 
-    border-color: #dc3545;
-}
+#congestion-display { margin: 15px 0; }
+#emoji { font-size: 70px; display: block; line-height: 1.2; }
+#level-text { font-size: 2.2em; font-weight: bold; margin: 10px 0; }
 
 .data-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 15px;
-    margin-top: 20px;
+    margin-top: 25px;
 }
 
 .data-item {
-    background: white;
+    background: #f8f9fa;
     padding: 15px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    text-align: center;
 }
 
-.data-item h4 {
-    margin-top: 0;
-    color: #6c757d;
-    font-size: 0.9em;
+.data-item h4 { margin: 0; color: #6c757d; font-size: 0.9em; }
+.data-item p { font-size: 1.4em; font-weight: bold; color: #333; margin: 8px 0 0; }
+
+/* TRẠNG THÁI MÀU SẮC */
+.status-Thấp { background-color: #d4edda; border-color: #28a745; } 
+.status-Thấp h3 { color: #28a745; }
+.status-Vừa_phải { background-color: #fff3cd; border-color: #ffc107; } 
+.status-Vừa_phải h3 { color: #d39e00; }
+.status-Cao { background-color: #fff0e7; border-color: #fd7e14; } 
+.status-Cao h3 { color: #e8590c; }
+.status-Tắc_nghẽn_nặng { background-color: #f8d7da; border-color: #dc3545; }
+.status-Tắc_nghẽn_nặng h3 { color: #c82333; }
+
+/* HIỆU ỨNG LOADING (UX TRICK CHO CẢM GIÁC NHANH) */
+#loading-overlay {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
 }
 
-.data-item p {
-    font-size: 1.5em;
-    font-weight: bold;
-    color: #333;
-    margin: 5px 0 0;
+.hidden { display: none !important; }
+
+.spinner {
+    border: 6px solid #f3f3f3; border-top: 6px solid #1a73e8;
+    border-radius: 50%; width: 50px; height: 50px;
+    animation: spin 1s linear infinite;
+    margin-bottom: 15px;
 }
 
-#refresh-btn {
-    background-color: #17a2b8;
-    color: white;
-    padding: 12px 25px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    margin-top: 30px;
-    font-size: 1em;
-    font-weight: bold;
-    transition: background-color 0.3s;
-    display: block;
-    width: 100%;
-    max-width: 300px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-#refresh-btn:hover:not(:disabled) {
-    background-color: #138496;
-}
-
-#refresh-btn:disabled {
-    background-color: #6c757d;
-    cursor: not-allowed;
-}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
 footer {
-    width: 100%;
-    text-align: center;
-    padding: 15px;
-    background-color: #333;
-    color: white;
-    margin-top: 40px;
+    width: 100%; text-align: center; padding: 15px;
+    background-color: #333; color: white; margin-top: auto;
 }

@@ -1,3 +1,4 @@
+# app.py
 import os
 import json
 import pandas as pd
@@ -10,7 +11,6 @@ from flask import Flask, send_from_directory, jsonify, request
 
 # Import các hàm từ các module bạn đã viết
 from utils.traffic_scraper import get_google_maps_speed
-from utils.traffic_estimate import estimate_traffic_counts
 from predict.real_time_predict import get_real_weather, classify
 
 # ===========================
@@ -43,18 +43,18 @@ latest_prediction = {}
 def process_traffic_prediction():
     global latest_prediction
     try:
-        # 1. Cào dữ liệu Google Maps (HaUI)
+        # 1. Cào dữ liệu Google Maps 
         url = "http://googleusercontent.com/maps.google.com/8"
         avg_speed, green_time = get_google_maps_speed(url)
-        
-        # 2. Lấy thời tiết & Ước lượng xe
         temp, rain = get_real_weather()
-        moto, car, bus = estimate_traffic_counts(avg_speed)
         
+        # 2. Lấy dữ liệu các trường
         now = datetime.now()
-        
         vn_holidays = holidays.VN() 
         is_holiday = 1 if (now in vn_holidays or now.weekday() >= 5) else 0
+        
+        is_peak_hour = (7 <= now.hour <= 9) or (16 <= now.hour <= 19)
+        event_flag = 1 if (avg_speed < 10 and not is_peak_hour) else 0
         
         # Logic Sự cố (event_flag): 
         # Thực tế rất khó cào sự cố real-time, nên ta dùng logic dựa trên tốc độ:
@@ -65,17 +65,13 @@ def process_traffic_prediction():
         # 3. Chuẩn bị dữ liệu cho Model
         features = [
             "avg_speed", "green_time", "rain", "temp", "event_flag",
-            "hour_of_day", "day_of_week", "is_holiday",
-            "motorbike_count", "car_count", "bus_count", "minute"
+            "hour_of_day", "day_of_week", "is_holiday", "minute"
         ]
         
         input_row = {
             "avg_speed": avg_speed, "green_time": green_time, "rain": rain, "temp": temp,
-            "event_flag": event_flag, 
-            "hour_of_day": now.hour, 
-            "day_of_week": now.weekday() + 1,
-            "is_holiday": is_holiday, 
-            "motorbike_count": moto, "car_count": car, "bus_count": bus,
+            "event_flag": event_flag, "hour_of_day": now.hour, 
+            "day_of_week": now.weekday() + 1, "is_holiday": is_holiday, 
             "minute": now.minute
         }
         
@@ -94,11 +90,8 @@ def process_traffic_prediction():
             "green_time": green_time, 
             "temp": temp,          
             "rain": "Mưa" if rain == 1 else "Khô ráo", 
-            "motorbike_count": moto, 
-            "car_count": car,      
-            "bus_count": bus,
             "event_flag": event_flag, 
-            "is_holiday": is_holiday,    
+            "is_holiday": is_holiday,
         }
         latest_prediction = result
         
@@ -154,6 +147,60 @@ def get_history():
         return jsonify({"error": "Data file not found"}), 404
     df = pd.read_csv(DATA_PATH)
     return df.to_json(orient="records")
+
+@app.route("/api/predict-location", methods=["POST"])
+def predict_custom_location():
+    data = request.json
+    if not data or 'lat' not in data or 'lng' not in data:
+        return jsonify({"error": "Thiếu tọa độ lat/lng"}), 400
+        
+    lat = data['lat']
+    lng = data['lng']
+    
+    try:
+        # 1. Cào tốc độ tại tọa độ người dùng chọn
+        avg_speed, green_time = get_google_maps_speed(lat, lng)
+        
+        # 2. Lấy thời tiết tại tọa độ đó
+        temp, rain = get_real_weather(lat, lng)
+        
+        # 3. Tính toán các biến thời gian
+        now = datetime.now()
+        vn_holidays = holidays.VN() 
+        is_holiday = 1 if (now in vn_holidays or now.weekday() >= 5) else 0
+        is_peak_hour = (7 <= now.hour <= 9) or (16 <= now.hour <= 19)
+        event_flag = 1 if (avg_speed < 10 and not is_peak_hour) else 0
+
+        # 4. Dự đoán bằng Model
+        features = [
+            "avg_speed", "green_time", "rain", "temp", "event_flag",
+            "hour_of_day", "day_of_week", "is_holiday", "minute"
+        ]
+        
+        input_row = {
+            "avg_speed": avg_speed, "green_time": green_time, "rain": rain, "temp": temp,
+            "event_flag": event_flag, "hour_of_day": now.hour, 
+            "day_of_week": now.weekday() + 1, "is_holiday": is_holiday, 
+            "minute": now.minute
+        }
+        
+        df_input = pd.DataFrame([input_row])
+        pred_flow = model.predict(df_input[features])[0]
+        level = classify(pred_flow)
+        
+        return jsonify({
+            "status": "success",
+            "location": {"lat": lat, "lng": lng},
+            "congestion_level": level,
+            "flow_predicted": round(float(pred_flow), 2),
+            "details": {
+                "speed": avg_speed,
+                "weather": "Mưa" if rain else "Khô ráo",
+                "temp": temp
+            }
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # ===========================
 # START SERVER

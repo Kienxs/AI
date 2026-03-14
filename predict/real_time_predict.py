@@ -10,12 +10,10 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from utils.traffic_scraper import get_google_maps_speed
 from utils.traffic_estimate import estimate_traffic_counts
 
-def get_real_weather():
+def get_real_weather(lat, lng):
     try:
-        res = requests.get(
-            "https://api.open-meteo.com/v1/forecast?latitude=21.0537&longitude=105.7351&current_weather=true&temperature_unit=celsius&timezone=auto",
-            timeout=5
-        ).json()
+        url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lng}&current_weather=true&temperature_unit=celsius&timezone=auto"
+        res = requests.get(url, timeout=5).json()
         
         temp = res["current_weather"]["temperature"]
         weather_code = res["current_weather"]["weathercode"]
@@ -34,14 +32,10 @@ MODEL_PATH = "models/model.pkl"
 model = joblib.load(MODEL_PATH)
 
 url = "https://www.google.com/maps/@21.0537,105.7351,17z/data=!5m1!1e1"
-
 avg_speed, green_time = get_google_maps_speed(url)
-
 temp, rain = get_real_weather()
-
-moto, car, bus = estimate_traffic_counts(avg_speed)
-
 now = datetime.now()
+
 new_data = {
     "timestamp": [now],
     "avg_speed": [avg_speed],
@@ -52,9 +46,6 @@ new_data = {
     "hour_of_day": [now.hour],
     "day_of_week": [now.weekday() + 1],
     "is_holiday": [0],
-    "motorbike_count": [moto],
-    "car_count": [car],
-    "bus_count": [bus],
     "minute": [now.minute]
 }
 
@@ -63,8 +54,7 @@ new_df = pd.DataFrame(new_data)
 # ==== Dự đoán ====
 features = [
     "avg_speed", "green_time", "rain", "temp", "event_flag",
-    "hour_of_day", "day_of_week", "is_holiday",
-    "motorbike_count", "car_count", "bus_count", "minute"
+    "hour_of_day", "day_of_week", "is_holiday", "minute"
 ]
 new_df["flow_weighted_pred"] = model.predict(new_df[features])
 
