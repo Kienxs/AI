@@ -8,7 +8,6 @@ import sys
 sys.stdout.reconfigure(encoding='utf-8')
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from utils.traffic_scraper import get_google_maps_speed
-from utils.traffic_estimate import estimate_traffic_counts
 
 def get_real_weather(lat, lng):
     try:
