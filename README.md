@@ -6,57 +6,57 @@
   </a>
 </div>
 
-## 📌 Giới thiệu dự án
-Đây là hệ thống dự đoán mức độ ùn tắc giao thông tại Việt Nam theo thời gian thực. Bằng cách sử dụng Machine Learning, hệ thống tự động cào dữ liệu từ bản đồ, kết hợp với các yếu tố thời gian và thời tiết để đưa ra các phân tích và dự báo chính xác ngay trên giao diện Web tương tác.
+<br/>
 
-**Các tính năng chính:**
-- 🗺️ **Bản đồ tương tác (Leaflet.js):** Nhấp vào bất kỳ điểm nào trên bản đồ để nhận dự đoán.
-- 🤖 **AI Dự đoán thông minh:** Phân loại mức độ ùn tắc (Thấp, Vừa phải, Cao, Tắc nghẽn nặng) với độ chính xác cao.
-- 🌤️ **Tích hợp thời tiết:** Tự động lấy dữ liệu nhiệt độ và tình trạng mưa tại vị trí được chọn.
-- ⚡ **Tối ưu hóa máy chủ:** Xử lý luồng (Lock Threading) và tối ưu Chrome Headless trên Docker để chạy mượt mà trên môi trường RAM thấp.
+## 📌 Project Overview
+The **Vietnam AI Traffic Predictor** is a real-time web application that predicts traffic congestion levels across Vietnam. By leveraging Machine Learning, the system automatically scrapes live traffic data from Google Maps, combines it with real-time weather and time-based features, and delivers instant congestion analysis via an interactive map interface.
 
----
-
-## ⚙️ Luồng hoạt động của hệ thống (System Architecture)
-
-Hệ thống hoạt động theo mô hình Client-Server kết hợp luồng xử lý AI:
-
-1. **Client (Frontend):** Người dùng nhấp vào một điểm trên bản đồ Leaflet. Tọa độ (Lat, Lng) được gửi đến Backend thông qua API `/api/predict-location`.
-2. **Scraping Engine:** Backend sử dụng **Selenium (Headless Chromium)** để truy cập Google Maps với layer Giao thông tại tọa độ đó. Phân tích ma trận điểm ảnh (Pixels) để trích xuất màu giao thông và quy đổi thành Vận tốc trung bình (`avg_speed`).
-3. **Weather API:** Gọi Open-Meteo API để lấy thông tin nhiệt độ và lượng mưa.
-4. **Data Preprocessing:** Tổng hợp dữ liệu tốc độ, thời tiết, kết hợp với thời gian thực (Giờ, Ngày trong tuần, Ngày lễ sử dụng thư viện `holidays`).
-5. **AI Inference:** Đưa vector đặc trưng vào mô hình **Random Forest Regressor** để tính toán "Chỉ số ách tắc" (`flow_weighted`).
-6. **Response:** Backend phân loại mức độ và trả kết quả (JSON) về cho giao diện hiển thị ngay lập tức.
+### ✨ Key Features
+- 🗺️ **Interactive Map (Leaflet.js):** Click anywhere on the map to receive an instant AI-powered traffic prediction for that specific coordinate.
+- 🤖 **Smart AI Inference:** Classifies current traffic into 4 levels: *Low, Moderate, High, and Severe Congestion*.
+- 🌤️ **Real-time Weather Integration:** Automatically fetches temperature and precipitation data for the selected location via the Open-Meteo API.
+- ⚡ **Optimized Deployment:** Implements Thread Locking and a highly optimized Headless Chromium configuration via Docker to ensure smooth scraping on low-RAM cloud environments (Hugging Face Spaces).
 
 ---
 
-## 📊 Mô hình & Dữ liệu Huấn luyện (Training Data)
+## ⚙️ System Architecture & Workflow
 
-### 1. Dữ liệu (Dataset)
-Do dữ liệu lịch sử giao thông chi tiết không có sẵn, mình đã xây dựng một Script để tạo dữ liệu giả lập (Synthetic Data) có kiểm soát chặt chẽ dựa trên **đặc thù giao thông thực tế tại cổng trường Đại học Công nghiệp Hà Nội (HaUI - QL32)** trong 3 tháng (Tháng 10 - 12/2025).
+The system operates on a Client-Server architecture integrated with a Machine Learning pipeline:
 
-**Các đặc trưng (Features) đưa vào huấn luyện:**
-- `avg_speed`: Tốc độ trung bình (Quy đổi từ màu của bản đồ).
-- `hour_of_day`, `minute`, `day_of_week`: Yếu tố thời gian.
-- `is_holiday`: Gắn nhãn ngày lễ/cuối tuần (Sinh viên nghỉ học -> Đường vắng hơn).
-- `rain`, `temp`: Thời tiết.
-- `event_flag`: Sự cố ngẫu nhiên.
-
-### 2. Huấn luyện Mô hình
-- **Thuật toán:** `RandomForestRegressor` từ thư viện `scikit-learn`.
-- **Kết quả đánh giá:** - **R² Score:** > 0.96 (Mô hình giải thích được >96% sự biến thiên của giao thông thực tế).
-  - **Feature Importances:** Tốc độ (avg_speed) và Giờ cao điểm (hour_of_day) được mô hình đánh giá là 2 yếu tố quyết định lớn nhất, hoàn toàn khớp với logic của con người.
+1. **Client Request:** The user clicks a location on the map. Coordinates (Lat, Lng) are sent to the Flask Backend.
+2. **Scraping Engine:** The backend uses **Selenium (Headless Chromium)** to navigate to Google Maps and capture the traffic layer at that exact coordinate. Matrix pixel analysis (using NumPy and Pillow) extracts the dominant traffic color and converts it into an estimated average speed (`avg_speed`).
+3. **Context Gathering:** The system fetches current weather data and calculates time-based features (Hour, Day of the week, and Holiday status using the Python `holidays` library).
+4. **AI Prediction:** The combined feature vector is fed into a pre-trained **Random Forest Regressor** to calculate a Congestion Index (`flow_weighted`).
+5. **Response:** The backend classifies the index and returns a JSON payload to update the frontend UI instantly.
 
 ---
 
-## 🛠️ Công nghệ sử dụng (Tech Stack)
+## 📊 Model & Training Data
+
+### ⚠️ Data Limitations & Generalization Disclaimer
+It is important to note the scope of the training data. The model was trained on a highly controlled, synthetic dataset based on the real-world traffic patterns of **a single specific location**: *The gate of Hanoi University of Industry (HaUI) on QL32 Highway, Hanoi.*
+
+Because the model was trained on the traffic capacity of a major highway intersection, **applying it globally to any random location (e.g., a small alley in Ho Chi Minh City or a rural road) means the absolute numerical predictions might not perfectly reflect that specific road's physical capacity.**
+
+**However, the logical accuracy remains highly reliable.** The model has successfully learned the universal rules of traffic dynamics. For example, it understands that:
+`Red Map Color (Low Speed) + Rush Hour (17:00) + Rain = Severe Congestion`
+Therefore, while the exact vehicle count/flow number is localized, the **congestion classification trend (Low to Severe) is conceptually accurate and applicable anywhere.**
+
+### Model Performance
+- **Algorithm:** `RandomForestRegressor` (scikit-learn)
+- **R² Score:** `> 0.96` (The model successfully explains over 96% of the variance in the training data).
+- **Feature Importance:** The model heavily prioritizes `avg_speed` (scraped map color) and `hour_of_day`, proving it has learned human-like logic regarding rush hours and traffic flow.
+
+---
+
+## 🛠️ Tech Stack
+
 - **Backend:** Python, Flask, Gunicorn
-- **AI & Data:** Scikit-learn, Pandas, NumPy, Joblib
-- **Scraping:** Selenium, webdriver-manager, Pillow (Image Processing)
-- **Frontend:** HTML5, CSS3, Vanilla JS, Leaflet.js
-- **DevOps & Deployment:** Docker, Hugging Face Spaces
+- **AI & Data Science:** Scikit-learn, Pandas, NumPy, Joblib
+- **Web Scraping & Vision:** Selenium, webdriver-manager, Pillow
+- **Frontend:** HTML5, CSS3, Vanilla JavaScript, Leaflet.js
+- **DevOps & Deployment:** Docker, Git, Hugging Face Spaces
 
 
-
-# 4. Khởi chạy Server
+# 4. Start the Flask server
 python app.py
