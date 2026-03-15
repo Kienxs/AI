@@ -56,7 +56,3 @@ Therefore, while the exact vehicle count/flow number is localized, the **congest
 - **Web Scraping & Vision:** Selenium, webdriver-manager, Pillow
 - **Frontend:** HTML5, CSS3, Vanilla JavaScript, Leaflet.js
 - **DevOps & Deployment:** Docker, Git, Hugging Face Spaces
-
-
-# 4. Start the Flask server
-python app.py
